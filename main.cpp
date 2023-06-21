@@ -199,7 +199,8 @@ int main() {
 
             if(category == "RESIDENTIAL"){
                 int power = calculateResidentialPower(amount);
-                connector.buyElectricity(amount, cashPowerNumber, power);
+                cout << cashPowerNumber << " " << amount << " " << power << endl;
+                connector.buyElectricity(cashPowerNumber, amount, power);
             }
         }
         else if(command == "HELP"){

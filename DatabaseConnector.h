@@ -5,6 +5,7 @@
 #include <mysql_driver.h>
 #include <mysql_connection.h>
 #include <cppconn/statement.h>
+#include <cppconn/prepared_statement.h>
 #include "Customer.h"
 
 class DatabaseConnector {
@@ -49,13 +50,20 @@ public:
         try {
             sql::Statement *stmt = con->createStatement();
             sql::ResultSet *res = stmt->executeQuery("SELECT * FROM customers WHERE cash_power_number = '" + cashPowerNumber + "'");
-            
-            Customer customer(res->getString("name"), res->getString("cash_power_number"), res->getString("category"));
-            
+
+            if (res->next()) {
+                // Cursor is positioned on a valid row, fetch the data
+                Customer customer(res->getString("name"), res->getString("cash_power_number"), res->getString("category"));
+                return customer;
+            } else {
+                // No matching row found
+                // Handle the case when no customer is found with the given cash_power_number
+                return Customer("", "", "");
+            }
+
+            // Don't forget to clean up the result set and statement
             delete res;
             delete stmt;
-
-            return customer;
         }
         catch (sql::SQLException &e) {
             std::cout << "SQL Exception occurred: " << e.what() << std::endl;
@@ -75,17 +83,37 @@ public:
         }
     }
    
-    void buyElectricity(const int amount, const std::string& cashPowerNumber, const float power) {
+    void buyElectricity(const std::string& cashPowerNumber, const int amount, const float power) {
     try {
+        sql::PreparedStatement *stmt = con->prepareStatement("SELECT cash_power_number FROM customers WHERE cash_power_number = ?");
+        stmt->setString(1, cashPowerNumber);
+        sql::ResultSet *res = stmt->executeQuery();
         
+        if (res->next()) {
+            // Cash power number exists, proceed with inserting the electricity record
+            delete stmt;
+            delete res;
+            
+            stmt = con->prepareStatement("INSERT INTO electricity (amount, power, cash_power_number) VALUES (?, ?, ?)");
+            stmt->setInt(1, amount);
+            stmt->setDouble(2, power);
+            stmt->setString(3, cashPowerNumber);
+            stmt->executeUpdate();
+            
+            std::cout << "Electricity recorded successfully!" << std::endl;
+        } else {
+            std::cout << "Customer not found" << std::endl;
+        }
+        
+        delete stmt;
     }
     catch (sql::SQLException &e) {
         std::cout << "SQL Exception occurred: " << e.what() << std::endl;
     }
 }
 
-
-
+    
+   
 };
 
 #endif  // DATABASE_CONNECTOR_H
